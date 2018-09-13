@@ -66,5 +66,39 @@ def query_datasets():
 
     return [ {"label": label_modif(row), "value": label_modif(row)} for row in json["results"]["bindings"] ] 
  
+from SPARQLWrapper import SPARQLWrapper, JSON
 
+#if the arg is empty in ProxyHandler, urllib will find itself your proxy config.
+proxy_support = urllib.request.ProxyHandler({'http':'http://proxy-rie.http.insee.fr:8080', 'https':'http://proxy-rie.http.insee.fr:8080'})
+opener = urllib.request.build_opener(proxy_support)
+urllib.request.install_opener(opener)
+
+sparql = SPARQLWrapper("http://hackathon2018.ontotext.com/repositories/plosh")
+sparql.setReturnFormat(JSON)
+
+def query_dimensions():
+    query = """
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX qb: <http://purl.org/linked-data/cube#>
+    PREFIX mes: <http://id.insee.fr/meta/mesure/>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> 
+
+    SELECT ?dim ?label where {           
+        ?s a qb:DataSet.
+        ?s qb:structure ?dsd.
+        ?dsd qb:component/qb:dimension ?dim.
+        ?dim rdfs:label ?labelfr
+
+        filter(langMatches(lang(?labelfr),"fr"))
+        BIND(IF(BOUND(?labelfr), ?labelfr,?dim) AS ?label)
+    }  LIMIT 10
+    """
+
+    sparql.setQuery(query)
+    results = sparql.query().convert()
+
+    results=query_dimensions()['results']['bindings']
+    keys=list(results[0].keys())  
+    
+    return [{'label': result[keys[1]]['value'], 'value': result[keys[0]]['value']} for result in results]
     
